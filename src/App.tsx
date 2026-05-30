@@ -174,10 +174,6 @@ function App() {
       {selectedShop && (
         <MissedModal shop={selectedShop} onClose={handleCloseModal} />
       )}
-
-      <div className="muse-footer">
-        뮤즈 베타 검증용 샘플 · 실제 결제·예약은 진행되지 않습니다
-      </div>
     </div>
   );
 }

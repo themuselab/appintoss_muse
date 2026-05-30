@@ -310,24 +310,9 @@ export function MissedModal({ shop, onClose }: Props) {
               fontWeight: 700,
               color: "#1f1f1f",
               marginBottom: 7,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
             }}
           >
             인기 후기
-            <span
-              style={{
-                fontSize: 9,
-                fontWeight: 500,
-                color: "#9e9e9e",
-                background: "#f5f5f5",
-                padding: "2px 5px",
-                borderRadius: 3,
-              }}
-            >
-              검증 샘플
-            </span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {shop.reviews.map((r, i) => (
@@ -438,17 +423,6 @@ export function MissedModal({ shop, onClose }: Props) {
         >
           지도에서 다른 자리 보기
         </button>
-
-        <div
-          style={{
-            marginTop: 12,
-            fontSize: 10,
-            color: "#9e9e9e",
-            textAlign: "center",
-          }}
-        >
-          이 화면의 가게/후기는 뮤즈 베타 검증용 가상 데이터입니다
-        </div>
       </div>
     </div>
   );
