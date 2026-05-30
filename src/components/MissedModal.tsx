@@ -63,6 +63,59 @@ export function MissedModal({ shop, onClose }: Props) {
           }}
         />
 
+        {/* 🔴 메인 메시지 배너 — 모달 최상단, 가장 강하게 강조 */}
+        <div
+          style={{
+            background:
+              "linear-gradient(135deg, #be185d 0%, #ec4899 100%)",
+            borderRadius: 12,
+            padding: "18px 18px",
+            marginBottom: 16,
+            color: "white",
+            position: "relative",
+            overflow: "hidden",
+            boxShadow: "0 6px 20px rgba(190, 24, 93, 0.25)",
+          }}
+        >
+          {/* SOLD OUT 라벨 */}
+          <div
+            style={{
+              display: "inline-block",
+              background: "rgba(255,255,255,0.22)",
+              padding: "4px 9px",
+              borderRadius: 999,
+              fontSize: 9.5,
+              fontWeight: 800,
+              letterSpacing: 1.2,
+              marginBottom: 10,
+            }}
+          >
+            마감 완료
+          </div>
+          <div
+            style={{
+              fontSize: 19,
+              fontWeight: 800,
+              lineHeight: 1.3,
+              marginBottom: 6,
+              letterSpacing: -0.3,
+            }}
+          >
+            이 자리는 이미 예약됐어요
+          </div>
+          <div
+            style={{
+              fontSize: 12.5,
+              opacity: 0.92,
+              lineHeight: 1.5,
+            }}
+          >
+            방금 다른 고객이 결제 완료했어요.
+            <br />
+            이 시간 자리를 <strong>{otherCount}분</strong>이 동시에 보고 있었어요.
+          </div>
+        </div>
+
         {/* 가게명 + 카테고리 배지 */}
         <div
           style={{
@@ -73,6 +126,16 @@ export function MissedModal({ shop, onClose }: Props) {
           }}
         >
           <div style={{ flex: 1 }}>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#9e9e9e",
+                marginBottom: 2,
+              }}
+            >
+              놓치신 곳
+            </div>
             <div
               style={{
                 fontSize: 16,
@@ -133,31 +196,6 @@ export function MissedModal({ shop, onClose }: Props) {
           <span>경력 {shop.yearsInBusiness}년</span>
           <span>·</span>
           <span>도보 {shop.walkMinutes}분</span>
-        </div>
-
-        {/* 메시지 */}
-        <div
-          style={{
-            background: "#fdf2f8",
-            border: "1px solid #fce7f3",
-            borderRadius: 8,
-            padding: "12px 14px",
-            marginBottom: 14,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 13.5,
-              fontWeight: 700,
-              color: "#be185d",
-              marginBottom: 3,
-            }}
-          >
-            방금 다른 고객이 결제했어요
-          </div>
-          <div style={{ fontSize: 11.5, color: "#9d174d" }}>
-            이 자리는 <strong>{otherCount}분</strong>이 동시에 보고 있었어요
-          </div>
         </div>
 
         {/* 가격 (시그니처) */}
