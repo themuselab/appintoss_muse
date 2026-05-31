@@ -18,10 +18,12 @@ import {
 type Props = {
   highlightedShopId?: string;
   onPinClick: (shop: Shop) => void;
+  myPos?: { lat: number; lng: number } | null;
+  center?: { lat: number; lng: number };
 };
 
-// 서울 중심 좌표 (8개 동네 모두 보이도록 약간 위쪽 잡음)
-const SEOUL_CENTER = { lat: 37.555, lng: 127.0 };
+// fallback center
+const FALLBACK_CENTER = { lat: 37.555, lng: 127.0 };
 
 // SVG → dataURL (카카오 마커 이미지로 사용)
 function pinDataUrl(color: string, highlighted = false): string {
@@ -34,7 +36,7 @@ function pinDataUrl(color: string, highlighted = false): string {
 // 카카오 키 — VITE_KAKAO_KEY 환경변수에서 (배포 시 카카오 디벨로퍼 콘솔 등록 필요)
 const KAKAO_KEY = import.meta.env.VITE_KAKAO_KEY as string | undefined;
 
-export function KakaoMap({ highlightedShopId, onPinClick }: Props) {
+export function KakaoMap({ highlightedShopId, onPinClick, myPos, center }: Props) {
   const [filter, setFilter] = useState<ServiceCategory | "전체">("전체");
   const mapRef = useRef<MapInstance>(null);
 
@@ -157,13 +159,25 @@ export function KakaoMap({ highlightedShopId, onPinClick }: Props) {
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
       <Map
-        center={SEOUL_CENTER}
-        level={9}
+        center={center || myPos || FALLBACK_CENTER}
+        level={myPos ? 5 : 9}
         style={{ width: "100%", height: "100%" }}
         onCreate={(m) => {
           mapRef.current = m;
         }}
       >
+        {/* 내 위치 마커 */}
+        {myPos && (
+          <MapMarker
+            position={myPos}
+            image={{
+              src: `data:image/svg+xml;utf8,${encodeURIComponent(
+                `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="#3b82f6" fill-opacity="0.2"/><circle cx="14" cy="14" r="6" fill="#3b82f6" stroke="white" stroke-width="2.5"/></svg>`,
+              )}`,
+              size: { width: 28, height: 28 },
+            }}
+          />
+        )}
         <MarkerClusterer averageCenter minLevel={6} disableClickZoom={false}>
           {visibleShops.map((s) => {
             const isH = s.id === highlightedShopId;

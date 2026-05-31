@@ -1,30 +1,44 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import type { Shop } from "../data/shops";
 import { CATEGORY_COLORS, SHOPS } from "../data/shops";
+import { distanceMeters, fmtDistance } from "../lib/geo";
 
 type Props = {
   shop: Shop;
+  myPos?: { lat: number; lng: number } | null;
   onClose: () => void;
+  onSelectNearby: (shop: Shop) => void;
 };
 
-export function MissedModal({ shop, onClose }: Props) {
-  const [otherCount, setOtherCount] = useState(1);
+export function MissedModal({ shop, myPos, onClose, onSelectNearby }: Props) {
+  // 동시에 보고 있는 인원수: 가게 ID 기반 결정적 1~3 (모달 다시 열어도 같은 가게면 같음)
+  const otherCount = useMemo(() => {
+    let h = 0;
+    for (let i = 0; i < shop.id.length; i++) h = (h * 31 + shop.id.charCodeAt(i)) | 0;
+    return (Math.abs(h) % 3) + 1; // 1, 2, 3
+  }, [shop.id]);
 
-  useEffect(() => {
-    const t = setTimeout(() => setOtherCount(2), 1500);
-    const t2 = setTimeout(() => setOtherCount(3), 3000);
-    return () => {
-      clearTimeout(t);
-      clearTimeout(t2);
-    };
-  }, []);
-
-  const similar = SHOPS.filter(
-    (s) => s.category === shop.category && s.id !== shop.id,
-  )
-    .sort((a, b) => b.repeatRate - a.repeatRate)
-    .slice(0, 3);
   const color = CATEGORY_COLORS[shop.category];
+
+  const distStr = myPos
+    ? fmtDistance(distanceMeters(myPos.lat, myPos.lng, shop.lat, shop.lng))
+    : null;
+
+  // 내 위치 기준 가까운 같은 카테고리 가게 (현 가게 제외) 3개
+  const nearby = useMemo(() => {
+    const pool = SHOPS.filter(
+      (s) => s.category === shop.category && s.id !== shop.id,
+    );
+    const ranked = myPos
+      ? pool
+          .map((s) => ({
+            s,
+            d: distanceMeters(myPos.lat, myPos.lng, s.lat, s.lng),
+          }))
+          .sort((a, b) => a.d - b.d)
+      : pool.map((s) => ({ s, d: 0 })).sort((a, b) => b.s.repeatRate - a.s.repeatRate);
+    return ranked.slice(0, 4).map((r) => ({ shop: r.s, d: r.d }));
+  }, [shop.id, shop.category, myPos]);
 
   return (
     <div
@@ -63,7 +77,7 @@ export function MissedModal({ shop, onClose }: Props) {
           }}
         />
 
-        {/* 🔴 메인 메시지 배너 — 모달 최상단, 가장 강하게 강조 */}
+        {/* 메인 메시지 배너 — 알림 시간 일치 */}
         <div
           style={{
             background:
@@ -72,12 +86,9 @@ export function MissedModal({ shop, onClose }: Props) {
             padding: "18px 18px",
             marginBottom: 16,
             color: "white",
-            position: "relative",
-            overflow: "hidden",
             boxShadow: "0 6px 20px rgba(190, 24, 93, 0.25)",
           }}
         >
-          {/* SOLD OUT 라벨 */}
           <div
             style={{
               display: "inline-block",
@@ -101,7 +112,7 @@ export function MissedModal({ shop, onClose }: Props) {
               letterSpacing: -0.3,
             }}
           >
-            이 자리는 이미 예약됐어요
+            {shop.emptySlot} 자리, 이미 예약됐어요
           </div>
           <div
             style={{
@@ -112,7 +123,7 @@ export function MissedModal({ shop, onClose }: Props) {
           >
             방금 다른 고객이 결제 완료했어요.
             <br />
-            이 시간 자리를 <strong>{otherCount}분</strong>이 동시에 보고 있었어요.
+            지금 이 자리를 <strong>{otherCount}분</strong>이 동시에 보고 있어요.
           </div>
         </div>
 
@@ -128,7 +139,7 @@ export function MissedModal({ shop, onClose }: Props) {
           <div style={{ flex: 1 }}>
             <div
               style={{
-                fontSize: 14,
+                fontSize: 11,
                 fontWeight: 600,
                 color: "#9e9e9e",
                 marginBottom: 2,
@@ -172,7 +183,7 @@ export function MissedModal({ shop, onClose }: Props) {
           </span>
         </div>
 
-        {/* 신뢰 지표 한 줄 */}
+        {/* 신뢰 지표 */}
         <div
           style={{
             fontSize: 11.5,
@@ -185,7 +196,8 @@ export function MissedModal({ shop, onClose }: Props) {
           }}
         >
           <span>
-            ★ <strong style={{ color: "#1f1f1f" }}>{shop.rating.toFixed(1)}</strong>{" "}
+            ★{" "}
+            <strong style={{ color: "#1f1f1f" }}>{shop.rating.toFixed(1)}</strong>{" "}
             ({shop.reviewCount})
           </span>
           <span>·</span>
@@ -194,8 +206,14 @@ export function MissedModal({ shop, onClose }: Props) {
           </span>
           <span>·</span>
           <span>경력 {shop.yearsInBusiness}년</span>
-          <span>·</span>
-          <span>도보 {shop.walkMinutes}분</span>
+          {distStr && (
+            <>
+              <span>·</span>
+              <span>
+                내 위치 <strong style={{ color: "#1f1f1f" }}>{distStr}</strong>
+              </span>
+            </>
+          )}
         </div>
 
         {/* 가격 (시그니처) */}
@@ -241,7 +259,7 @@ export function MissedModal({ shop, onClose }: Props) {
           </div>
         </div>
 
-        {/* 메뉴 리스트 */}
+        {/* 메뉴 */}
         <div style={{ marginBottom: 14 }}>
           <div
             style={{
@@ -262,7 +280,8 @@ export function MissedModal({ shop, onClose }: Props) {
                   justifyContent: "space-between",
                   fontSize: 12.5,
                   padding: "6px 0",
-                  borderBottom: i < shop.menu.length - 1 ? "1px solid #f5f5f5" : "none",
+                  borderBottom:
+                    i < shop.menu.length - 1 ? "1px solid #f5f5f5" : "none",
                 }}
               >
                 <span style={{ color: "#1f1f1f" }}>{m.name}</span>
@@ -343,7 +362,7 @@ export function MissedModal({ shop, onClose }: Props) {
           </div>
         </div>
 
-        {/* 비슷한 빈 자리 */}
+        {/* 근처 샵 — 클릭 가능 */}
         <div
           style={{
             fontSize: 11.5,
@@ -352,19 +371,25 @@ export function MissedModal({ shop, onClose }: Props) {
             marginBottom: 7,
           }}
         >
-          근처 비슷한 빈 자리
+          근처 샵
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {similar.map((s) => (
-            <div
+          {nearby.map(({ shop: s, d }) => (
+            <button
               key={s.id}
+              onClick={() => onSelectNearby(s)}
               style={{
                 border: "1px solid #ededed",
+                background: "white",
                 borderRadius: 8,
                 padding: "10px 12px",
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
+                cursor: "pointer",
+                textAlign: "left",
+                font: "inherit",
+                width: "100%",
               }}
             >
               <div
@@ -390,7 +415,8 @@ export function MissedModal({ shop, onClose }: Props) {
                   {s.district} {s.category}샵 · {s.specialty}
                 </div>
                 <div style={{ fontSize: 10.5, color: "#666", marginTop: 1 }}>
-                  ★ {s.rating.toFixed(1)} · 재방문 {s.repeatRate}% · {s.emptySlot}
+                  ★ {s.rating.toFixed(1)} · 재방문 {s.repeatRate}%
+                  {myPos && d > 0 && ` · ${fmtDistance(d)}`}
                 </div>
               </div>
               <div
@@ -402,7 +428,7 @@ export function MissedModal({ shop, onClose }: Props) {
               >
                 {s.discountedPrice.toLocaleString()}원
               </div>
-            </div>
+            </button>
           ))}
         </div>
 

@@ -1,23 +1,30 @@
 import { useEffect, useState } from "react";
 import type { Shop } from "../data/shops";
 import { CATEGORY_COLORS } from "../data/shops";
+import { distanceMeters, fmtDistance } from "../lib/geo";
 
 type Props = {
   shop: Shop;
   variant: "A" | "B";
+  myPos?: { lat: number; lng: number } | null;
   onClick: () => void;
   onClose: () => void;
 };
 
-function buildCopy(shop: Shop, variant: "A" | "B"): { title: string; body: string } {
+function buildCopy(
+  shop: Shop,
+  variant: "A" | "B",
+  distStr: string | null,
+): { title: string; body: string } {
   const discountPct = Math.round(
     ((shop.originalPrice - shop.discountedPrice) / shop.originalPrice) * 100,
   );
+  const distPart = distStr ? `${distStr} · ` : "";
 
   if (variant === "A") {
     return {
       title: `${shop.district} ${shop.category}샵, 지금 ${discountPct}% 할인`,
-      body: `${shop.specialty} · 도보 ${shop.walkMinutes}분 · ${shop.emptySlot}`,
+      body: `${shop.specialty} · ${distPart}${shop.emptySlot}`,
     };
   }
   return {
@@ -26,7 +33,7 @@ function buildCopy(shop: Shop, variant: "A" | "B"): { title: string; body: strin
   };
 }
 
-export function AlertCard({ shop, variant, onClick, onClose }: Props) {
+export function AlertCard({ shop, variant, myPos, onClick, onClose }: Props) {
   const [time, setTime] = useState("방금 전");
 
   useEffect(() => {
@@ -37,7 +44,10 @@ export function AlertCard({ shop, variant, onClick, onClose }: Props) {
     return () => clearInterval(t);
   }, []);
 
-  const copy = buildCopy(shop, variant);
+  const distStr = myPos
+    ? fmtDistance(distanceMeters(myPos.lat, myPos.lng, shop.lat, shop.lng))
+    : null;
+  const copy = buildCopy(shop, variant, distStr);
   const color = CATEGORY_COLORS[shop.category];
 
   return (
