@@ -7,6 +7,39 @@ import { track, getEntryInfo } from "./lib/track";
 import { getUserPosition, distanceMeters, SEOUL_CENTER } from "./lib/geo";
 import "./App.css";
 
+// 토스 미니앱 안에서 카카오 지도 SDK가 작동 안 함 (도메인 화이트리스트 매칭 안 됨).
+// 해결: 토스 환경 감지 시 Vercel URL을 iframe으로 임베드 → 카카오 SDK가 vercel origin에서 호출됨.
+// URL ?platform=toss 쿼리로 iframe 내부 React가 무한 iframe 방지 (강제 MainApp 모드).
+function detectInToss(): boolean {
+  if (typeof window === "undefined") return false;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("platform") === "toss") return false; // iframe 내부면 false
+  const ua = (navigator.userAgent || "").toLowerCase();
+  if (ua.includes("toss") || ua.includes("appsintoss")) return true;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const w = window as any;
+  if (w.__APPS_IN_TOSS__ || w.AppsInToss || w.TossApp) return true;
+  return false;
+}
+
+function TossIframeWrapper() {
+  return (
+    <iframe
+      src="https://appintoss-muse.vercel.app/?platform=toss"
+      style={{
+        width: "100vw",
+        height: "100vh",
+        border: 0,
+        display: "block",
+        margin: 0,
+        padding: 0,
+      }}
+      allow="geolocation; encrypted-media"
+      title="샥 미니앱"
+    />
+  );
+}
+
 function pickVariant(): "A" | "B" {
   const h = `${Date.now()}-${Math.random()}`;
   let n = 0;
@@ -40,6 +73,14 @@ function pickFromPool(pool: Shop[], exceptId?: string): Shop {
 }
 
 function App() {
+  // 토스 환경 = iframe wrapper (vercel 호출). 아니면 본래 로직 (Vercel에서 실행)
+  if (detectInToss()) {
+    return <TossIframeWrapper />;
+  }
+  return <MainApp />;
+}
+
+function MainApp() {
   const [variant] = useState<"A" | "B">(() => pickVariant());
   const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(null);
   const [alertShop, setAlertShop] = useState<Shop | null>(null);
