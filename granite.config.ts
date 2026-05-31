@@ -1,7 +1,7 @@
 import { defineConfig } from "@apps-in-toss/web-framework/config";
 
 export default defineConfig({
-  appName: "syak",
+  appName: "shak",
   brand: {
     displayName: "샥",
     primaryColor: "#ec4899",
