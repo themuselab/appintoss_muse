@@ -1,12 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Map,
-  MapMarker,
-  MarkerClusterer,
-  useKakaoLoader,
-} from "react-kakao-maps-sdk";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type MapInstance = any;
+// 일시 진단 빌드: react-kakao-maps-sdk 호환성 의심 → SVG placeholder로 대체
+import { useState } from "react";
 import {
   SHOPS,
   CATEGORY_COLORS,
@@ -16,216 +9,63 @@ import {
 } from "../data/shops";
 
 type Props = {
-  shops?: Shop[]; // 표시할 가게 풀 (없으면 전체 SHOPS)
+  shops?: Shop[];
   highlightedShopId?: string;
   onPinClick: (shop: Shop) => void;
   myPos?: { lat: number; lng: number } | null;
   center?: { lat: number; lng: number };
-  radiusKm?: number; // 우하단 안내 표시용
+  radiusKm?: number;
 };
-
-// fallback center
-const FALLBACK_CENTER = { lat: 37.555, lng: 127.0 };
-
-// SVG → dataURL (카카오 마커 이미지로 사용)
-function pinDataUrl(color: string, highlighted = false): string {
-  const size = highlighted ? 22 : 14;
-  const stroke = highlighted ? 2.5 : 1.4;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - stroke}" fill="${color}" stroke="white" stroke-width="${stroke}"/></svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
-
-// 카카오 키 — 환경변수가 없는 RN 번들 환경(토스 미니앱)을 위해 fallback 키 박음.
-// JS 키는 카카오 디벨로퍼의 사이트 도메인 화이트리스트로 보호됨.
-const KAKAO_KEY =
-  (import.meta.env.VITE_KAKAO_KEY as string | undefined) ||
-  "d8b9d4a2c02a527bf1711ecbcdf07b49";
 
 export function KakaoMap({
   shops,
-  highlightedShopId,
   onPinClick,
-  myPos,
-  center,
   radiusKm = 10,
 }: Props) {
   const [filter, setFilter] = useState<ServiceCategory | "전체">("전체");
-  const mapRef = useRef<MapInstance>(null);
-
-  const [loading, error] = useKakaoLoader({
-    appkey: KAKAO_KEY || "",
-    libraries: ["clusterer"],
-  });
-
   const pool = shops || SHOPS;
-  const visibleShops = useMemo(
-    () => (filter === "전체" ? pool : pool.filter((s) => s.category === filter)),
-    [pool, filter],
-  );
-
-  // highlighted shop 가운데로 panTo
-  useEffect(() => {
-    if (!highlightedShopId || !mapRef.current) return;
-    const shop = SHOPS.find((s) => s.id === highlightedShopId);
-    if (!shop) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const w = window as any;
-    if (w.kakao?.maps?.LatLng) {
-      mapRef.current.panTo(new w.kakao.maps.LatLng(shop.lat, shop.lng));
-    }
-  }, [highlightedShopId]);
-
-  if (!KAKAO_KEY) {
-    return (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 24,
-          background: "#fafafa",
-          textAlign: "center",
-          color: "#666",
-          gap: 12,
-        }}
-      >
-        <div style={{ fontSize: 14, fontWeight: 700, color: "#1f1f1f" }}>
-          카카오 지도 키 미설정
-        </div>
-        <div style={{ fontSize: 12, lineHeight: 1.5 }}>
-          <code
-            style={{
-              background: "#f5f5f5",
-              padding: "2px 6px",
-              borderRadius: 3,
-            }}
-          >
-            .env.local
-          </code>{" "}
-          파일에{" "}
-          <code
-            style={{
-              background: "#f5f5f5",
-              padding: "2px 6px",
-              borderRadius: 3,
-            }}
-          >
-            VITE_KAKAO_KEY=...
-          </code>{" "}
-          추가 필요
-          <br />
-          <a
-            href="https://developers.kakao.com"
-            target="_blank"
-            rel="noreferrer"
-            style={{ color: "#ec4899", marginTop: 8, display: "inline-block" }}
-          >
-            카카오 디벨로퍼에서 JavaScript 키 발급 →
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    // 디버그 정보는 console로만 (UI 단순화)
-    const origin =
-      typeof window !== "undefined" ? window.location.origin : "?";
-    // eslint-disable-next-line no-console
-    console.error("[shak] kakao map load failed:", {
-      error,
-      origin,
-      href: typeof window !== "undefined" ? window.location.href : "?",
-      ua: typeof navigator !== "undefined" ? navigator.userAgent : "?",
-    });
-    return (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#dc2626",
-          fontSize: 12,
-          padding: 16,
-          textAlign: "center",
-          gap: 6,
-        }}
-      >
-        <div>카카오 지도 로드 실패</div>
-        <div style={{ fontSize: 10, color: "#666", wordBreak: "break-all" }}>
-          origin: {origin}
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#9e9e9e",
-          fontSize: 12,
-        }}
-      >
-        지도 불러오는 중…
-      </div>
-    );
-  }
+  const visible = filter === "전체" ? pool : pool.filter((s) => s.category === filter);
 
   return (
-    <div style={{ width: "100%", height: "100%", position: "relative" }}>
-      <Map
-        center={center || myPos || FALLBACK_CENTER}
-        level={myPos ? 5 : 9}
-        style={{ width: "100%", height: "100%" }}
-        onCreate={(m) => {
-          mapRef.current = m;
-        }}
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        position: "relative",
+        overflow: "hidden",
+        background: "#f5f5f5",
+      }}
+    >
+      <svg
+        viewBox="0 0 1000 900"
+        width="100%"
+        height="100%"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ display: "block" }}
       >
-        {/* 내 위치 마커 */}
-        {myPos && (
-          <MapMarker
-            position={myPos}
-            image={{
-              src: `data:image/svg+xml;utf8,${encodeURIComponent(
-                `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="#3b82f6" fill-opacity="0.2"/><circle cx="14" cy="14" r="6" fill="#3b82f6" stroke="white" stroke-width="2.5"/></svg>`,
-              )}`,
-              size: { width: 28, height: 28 },
-            }}
-          />
-        )}
-        <MarkerClusterer averageCenter minLevel={6} disableClickZoom={false}>
-          {visibleShops.map((s) => {
-            const isH = s.id === highlightedShopId;
-            const color = CATEGORY_COLORS[s.category];
-            const url = pinDataUrl(color, isH);
-            return (
-              <MapMarker
-                key={s.id}
-                position={{ lat: s.lat, lng: s.lng }}
-                image={{
-                  src: url,
-                  size: { width: isH ? 22 : 14, height: isH ? 22 : 14 },
-                }}
-                onClick={() => onPinClick(s)}
-              />
-            );
-          })}
-        </MarkerClusterer>
-      </Map>
+        <rect width="1000" height="900" fill="#eeeeee" />
+        <path
+          d="M 0 500 Q 200 480 380 510 T 720 490 T 1000 510 L 1000 540 Q 720 560 380 540 T 0 530 Z"
+          fill="#cfe2ff"
+        />
+        {Array.from({ length: 11 }).map((_, i) => (
+          <line key={`h${i}`} x1="0" y1={i * 90} x2="1000" y2={i * 90} stroke="#e0e0e0" strokeWidth="1" />
+        ))}
+        {Array.from({ length: 12 }).map((_, i) => (
+          <line key={`v${i}`} x1={i * 90} y1="0" x2={i * 90} y2="900" stroke="#e0e0e0" strokeWidth="1" />
+        ))}
+        {visible.slice(0, 200).map((shop) => {
+          const sx = ((shop.lng - 126.85) / (127.15 - 126.85)) * 1000;
+          const sy = 900 - ((shop.lat - 37.45) / (37.7 - 37.45)) * 900;
+          const color = CATEGORY_COLORS[shop.category];
+          return (
+            <g key={shop.id} onClick={() => onPinClick(shop)} style={{ cursor: "pointer" }}>
+              <circle cx={sx} cy={sy} r="5" fill={color} stroke="white" strokeWidth="1.2" />
+            </g>
+          );
+        })}
+      </svg>
 
-      {/* 필터 */}
       <div
         style={{
           position: "absolute",
@@ -238,7 +78,6 @@ export function KakaoMap({
           gap: 2,
           boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
           border: "1px solid #ededed",
-          zIndex: 5,
         }}
       >
         {(["전체", ...CATEGORY_ORDER] as const).map((c) => (
@@ -257,19 +96,6 @@ export function KakaoMap({
             }}
           >
             {c}
-            {c !== "전체" && (
-              <span
-                style={{
-                  display: "inline-block",
-                  width: 5,
-                  height: 5,
-                  borderRadius: "50%",
-                  background: CATEGORY_COLORS[c as ServiceCategory],
-                  marginLeft: 5,
-                  verticalAlign: "middle",
-                }}
-              />
-            )}
           </button>
         ))}
       </div>
@@ -286,8 +112,6 @@ export function KakaoMap({
           color: "#555",
           fontWeight: 500,
           border: "1px solid #ededed",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-          zIndex: 5,
         }}
       >
         내 위치 {radiusKm}km · {pool.length}곳
