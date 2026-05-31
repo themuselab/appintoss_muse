@@ -35,8 +35,11 @@ function pinDataUrl(color: string, highlighted = false): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-// 카카오 키 — VITE_KAKAO_KEY 환경변수에서 (배포 시 카카오 디벨로퍼 콘솔 등록 필요)
-const KAKAO_KEY = import.meta.env.VITE_KAKAO_KEY as string | undefined;
+// 카카오 키 — 환경변수가 없는 RN 번들 환경(토스 미니앱)을 위해 fallback 키 박음.
+// JS 키는 카카오 디벨로퍼의 사이트 도메인 화이트리스트로 보호됨.
+const KAKAO_KEY =
+  (import.meta.env.VITE_KAKAO_KEY as string | undefined) ||
+  "d8b9d4a2c02a527bf1711ecbcdf07b49";
 
 export function KakaoMap({
   shops,
@@ -128,21 +131,49 @@ export function KakaoMap({
   }
 
   if (error) {
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "?";
+    const href = typeof window !== "undefined" ? window.location.href : "?";
+    const ua =
+      typeof navigator !== "undefined"
+        ? navigator.userAgent.slice(0, 80)
+        : "?";
+    const keyTail = KAKAO_KEY ? `...${KAKAO_KEY.slice(-6)}` : "(없음)";
+    const errMsg = error instanceof Error ? error.message : String(error);
     return (
       <div
         style={{
           width: "100%",
           height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#dc2626",
-          fontSize: 12,
-          padding: 20,
-          textAlign: "center",
+          overflowY: "auto",
+          padding: 16,
+          color: "#1f1f1f",
+          fontSize: 11,
+          fontFamily: "monospace",
+          background: "#fafafa",
         }}
       >
-        카카오 지도 로드 실패. 도메인 등록 확인 필요.
+        <div style={{ fontWeight: 700, fontSize: 13, color: "#dc2626", marginBottom: 8 }}>
+          카카오 지도 로드 실패
+        </div>
+        <div style={{ marginBottom: 6 }}>
+          <strong>error:</strong> {errMsg}
+        </div>
+        <div style={{ marginBottom: 6 }}>
+          <strong>origin:</strong> {origin}
+        </div>
+        <div style={{ marginBottom: 6, wordBreak: "break-all" }}>
+          <strong>href:</strong> {href}
+        </div>
+        <div style={{ marginBottom: 6, wordBreak: "break-all" }}>
+          <strong>UA:</strong> {ua}
+        </div>
+        <div style={{ marginBottom: 6 }}>
+          <strong>key:</strong> {keyTail}
+        </div>
+        <div style={{ marginTop: 10, fontSize: 10, color: "#666" }}>
+          → 위 <strong>origin</strong>을 카카오 디벨로퍼 콘솔의 사이트 도메인에 추가 필요.
+        </div>
       </div>
     );
   }
