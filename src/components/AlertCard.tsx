@@ -86,7 +86,7 @@ export function AlertCard({ shop, variant, myPos, onClick, onClose }: Props) {
           }}
         />
         <span style={{ fontSize: 11, fontWeight: 600, color: "#1f1f1f" }}>
-          뮤즈
+          샥
         </span>
         <span style={{ fontSize: 10, color: "#9e9e9e" }}>· {time}</span>
         <button

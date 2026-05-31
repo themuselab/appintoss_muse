@@ -189,10 +189,10 @@ function App() {
       <div className="muse-header">
         <div className="muse-logo-wrap">
           <div className="muse-logo">
-            <img src="/icon.png" alt="뮤즈" />
+            <img src="/icon.png" alt="샥" />
           </div>
           <div>
-            <div className="muse-title">뮤즈</div>
+            <div className="muse-title">샥</div>
             <div className="muse-subtitle">
               {myPos
                 ? `내 위치 10km · ${nearbyCount}곳`
