@@ -1,12 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Map,
-  MapMarker,
-  MarkerClusterer,
-  useKakaoLoader,
-} from "react-kakao-maps-sdk";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type MapInstance = any;
+// SVG mock 지도 — 토스 WebView + 카카오 JS SDK 호환성 이슈로 인해 SVG fallback 사용.
+// 실제 카카오/네이버 지도 의존성 0 → 토스 미니앱 100% 호환.
+import { useState } from "react";
 import {
   SHOPS,
   CATEGORY_COLORS,
@@ -16,196 +10,160 @@ import {
 } from "../data/shops";
 
 type Props = {
-  shops?: Shop[]; // 표시할 가게 풀 (없으면 전체 SHOPS)
+  shops?: Shop[];
   highlightedShopId?: string;
   onPinClick: (shop: Shop) => void;
   myPos?: { lat: number; lng: number } | null;
   center?: { lat: number; lng: number };
-  radiusKm?: number; // 우하단 안내 표시용
+  radiusKm?: number;
 };
 
-// fallback center
-const FALLBACK_CENTER = { lat: 37.555, lng: 127.0 };
+// 서울 위경도 범위 → SVG viewBox 좌표 변환
+const LNG_MIN = 126.85;
+const LNG_MAX = 127.18;
+const LAT_MIN = 37.45;
+const LAT_MAX = 37.69;
+const VB_W = 1000;
+const VB_H = 900;
 
-// SVG → dataURL (카카오 마커 이미지로 사용)
-function pinDataUrl(color: string, highlighted = false): string {
-  const size = highlighted ? 22 : 14;
-  const stroke = highlighted ? 2.5 : 1.4;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - stroke}" fill="${color}" stroke="white" stroke-width="${stroke}"/></svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+function latLngToSvg(lat: number, lng: number): { x: number; y: number } {
+  const x = ((lng - LNG_MIN) / (LNG_MAX - LNG_MIN)) * VB_W;
+  const y = VB_H - ((lat - LAT_MIN) / (LAT_MAX - LAT_MIN)) * VB_H;
+  return { x, y };
 }
 
-// 카카오 키 — VITE_KAKAO_KEY 환경변수에서 (배포 시 카카오 디벨로퍼 콘솔 등록 필요)
-const KAKAO_KEY = import.meta.env.VITE_KAKAO_KEY as string | undefined;
+const DISTRICT_LABELS = [
+  { name: "강남", lat: 37.4979, lng: 127.0276 },
+  { name: "홍대", lat: 37.5563, lng: 126.9239 },
+  { name: "성수", lat: 37.5447, lng: 127.0557 },
+  { name: "잠실", lat: 37.5113, lng: 127.1003 },
+  { name: "노원", lat: 37.6542, lng: 127.0568 },
+  { name: "이태원", lat: 37.5343, lng: 126.9943 },
+  { name: "건대", lat: 37.5408, lng: 127.0697 },
+  { name: "합정", lat: 37.5495, lng: 126.9134 },
+];
 
 export function KakaoMap({
   shops,
   highlightedShopId,
   onPinClick,
   myPos,
-  center,
   radiusKm = 10,
 }: Props) {
   const [filter, setFilter] = useState<ServiceCategory | "전체">("전체");
-  const mapRef = useRef<MapInstance>(null);
-
-  const [loading, error] = useKakaoLoader({
-    appkey: KAKAO_KEY || "",
-    libraries: ["clusterer"],
-  });
-
   const pool = shops || SHOPS;
-  const visibleShops = useMemo(
-    () => (filter === "전체" ? pool : pool.filter((s) => s.category === filter)),
-    [pool, filter],
-  );
+  const visibleShops =
+    filter === "전체" ? pool : pool.filter((s) => s.category === filter);
 
-  // highlighted shop 가운데로 panTo
-  useEffect(() => {
-    if (!highlightedShopId || !mapRef.current) return;
-    const shop = SHOPS.find((s) => s.id === highlightedShopId);
-    if (!shop) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const w = window as any;
-    if (w.kakao?.maps?.LatLng) {
-      mapRef.current.panTo(new w.kakao.maps.LatLng(shop.lat, shop.lng));
-    }
-  }, [highlightedShopId]);
-
-  if (!KAKAO_KEY) {
-    return (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 24,
-          background: "#fafafa",
-          textAlign: "center",
-          color: "#666",
-          gap: 12,
-        }}
-      >
-        <div style={{ fontSize: 14, fontWeight: 700, color: "#1f1f1f" }}>
-          카카오 지도 키 미설정
-        </div>
-        <div style={{ fontSize: 12, lineHeight: 1.5 }}>
-          <code
-            style={{
-              background: "#f5f5f5",
-              padding: "2px 6px",
-              borderRadius: 3,
-            }}
-          >
-            .env.local
-          </code>{" "}
-          파일에{" "}
-          <code
-            style={{
-              background: "#f5f5f5",
-              padding: "2px 6px",
-              borderRadius: 3,
-            }}
-          >
-            VITE_KAKAO_KEY=...
-          </code>{" "}
-          추가 필요
-          <br />
-          <a
-            href="https://developers.kakao.com"
-            target="_blank"
-            rel="noreferrer"
-            style={{ color: "#ec4899", marginTop: 8, display: "inline-block" }}
-          >
-            카카오 디벨로퍼에서 JavaScript 키 발급 →
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#dc2626",
-          fontSize: 12,
-          padding: 20,
-          textAlign: "center",
-        }}
-      >
-        카카오 지도 로드 실패. 도메인 등록 확인 필요.
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#9e9e9e",
-          fontSize: 12,
-        }}
-      >
-        지도 불러오는 중…
-      </div>
-    );
-  }
+  const myPosSvg = myPos ? latLngToSvg(myPos.lat, myPos.lng) : null;
 
   return (
-    <div style={{ width: "100%", height: "100%", position: "relative" }}>
-      <Map
-        center={center || myPos || FALLBACK_CENTER}
-        level={myPos ? 5 : 9}
-        style={{ width: "100%", height: "100%" }}
-        onCreate={(m) => {
-          mapRef.current = m;
-        }}
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        overflow: "hidden",
+        background: "#f5f5f5",
+        position: "relative",
+      }}
+    >
+      <svg
+        viewBox={`0 0 ${VB_W} ${VB_H}`}
+        width="100%"
+        height="100%"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ display: "block" }}
+        preserveAspectRatio="xMidYMid slice"
       >
-        {/* 내 위치 마커 */}
-        {myPos && (
-          <MapMarker
-            position={myPos}
-            image={{
-              src: `data:image/svg+xml;utf8,${encodeURIComponent(
-                `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="#3b82f6" fill-opacity="0.2"/><circle cx="14" cy="14" r="6" fill="#3b82f6" stroke="white" stroke-width="2.5"/></svg>`,
-              )}`,
-              size: { width: 28, height: 28 },
-            }}
+        <rect width={VB_W} height={VB_H} fill="#eeeeee" />
+
+        {/* 한강 */}
+        <path
+          d="M 0 500 Q 200 480 380 510 T 720 490 T 1000 510 L 1000 540 Q 720 560 380 540 T 0 530 Z"
+          fill="#cfe2ff"
+        />
+
+        {/* 도로 grid */}
+        {Array.from({ length: 11 }).map((_, i) => (
+          <line
+            key={`h${i}`}
+            x1="0"
+            y1={i * 90}
+            x2={VB_W}
+            y2={i * 90}
+            stroke="#e0e0e0"
+            strokeWidth="1"
           />
-        )}
-        <MarkerClusterer averageCenter minLevel={6} disableClickZoom={false}>
-          {visibleShops.map((s) => {
-            const isH = s.id === highlightedShopId;
-            const color = CATEGORY_COLORS[s.category];
-            const url = pinDataUrl(color, isH);
-            return (
-              <MapMarker
-                key={s.id}
-                position={{ lat: s.lat, lng: s.lng }}
-                image={{
-                  src: url,
-                  size: { width: isH ? 22 : 14, height: isH ? 22 : 14 },
-                }}
-                onClick={() => onPinClick(s)}
+        ))}
+        {Array.from({ length: 12 }).map((_, i) => (
+          <line
+            key={`v${i}`}
+            x1={i * 90}
+            y1="0"
+            x2={i * 90}
+            y2={VB_H}
+            stroke="#e0e0e0"
+            strokeWidth="1"
+          />
+        ))}
+
+        {/* 주요 도로 */}
+        <line x1="0" y1="270" x2={VB_W} y2="270" stroke="#c8c8c8" strokeWidth="2" />
+        <line x1="0" y1="630" x2={VB_W} y2="630" stroke="#c8c8c8" strokeWidth="2" />
+        <line x1="340" y1="0" x2="340" y2={VB_H} stroke="#c8c8c8" strokeWidth="2" />
+        <line x1="680" y1="0" x2="680" y2={VB_H} stroke="#c8c8c8" strokeWidth="2" />
+
+        {/* 동네 라벨 */}
+        {DISTRICT_LABELS.map((d) => {
+          const p = latLngToSvg(d.lat, d.lng);
+          return (
+            <text
+              key={d.name}
+              x={p.x}
+              y={p.y - 90}
+              textAnchor="middle"
+              fontSize="16"
+              fontWeight="600"
+              fill="#9e9e9e"
+              style={{ userSelect: "none" }}
+            >
+              {d.name}
+            </text>
+          );
+        })}
+
+        {/* 가게 핀 */}
+        {visibleShops.map((shop) => {
+          const isH = shop.id === highlightedShopId;
+          const color = CATEGORY_COLORS[shop.category];
+          const p = latLngToSvg(shop.lat, shop.lng);
+          return (
+            <g
+              key={shop.id}
+              onClick={() => onPinClick(shop)}
+              style={{ cursor: "pointer" }}
+              transform={`translate(${p.x}, ${p.y})`}
+            >
+              {isH && <circle r="14" fill={color} opacity="0.25" />}
+              {isH && <circle r="9" fill={color} opacity="0.45" />}
+              <circle
+                r={isH ? 5 : 4}
+                fill={color}
+                stroke="white"
+                strokeWidth="1.2"
               />
-            );
-          })}
-        </MarkerClusterer>
-      </Map>
+            </g>
+          );
+        })}
+
+        {/* 내 위치 마커 */}
+        {myPosSvg && (
+          <g transform={`translate(${myPosSvg.x}, ${myPosSvg.y})`}>
+            <circle r="14" fill="#3b82f6" opacity="0.2" />
+            <circle r="6" fill="#3b82f6" stroke="white" strokeWidth="2.5" />
+          </g>
+        )}
+      </svg>
 
       {/* 필터 */}
       <div
@@ -220,7 +178,6 @@ export function KakaoMap({
           gap: 2,
           boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
           border: "1px solid #ededed",
-          zIndex: 5,
         }}
       >
         {(["전체", ...CATEGORY_ORDER] as const).map((c) => (
@@ -269,7 +226,6 @@ export function KakaoMap({
           fontWeight: 500,
           border: "1px solid #ededed",
           boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-          zIndex: 5,
         }}
       >
         내 위치 {radiusKm}km · {pool.length}곳
