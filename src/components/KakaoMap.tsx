@@ -131,48 +131,35 @@ export function KakaoMap({
   }
 
   if (error) {
+    // 디버그 정보는 console로만 (UI 단순화)
     const origin =
       typeof window !== "undefined" ? window.location.origin : "?";
-    const href = typeof window !== "undefined" ? window.location.href : "?";
-    const ua =
-      typeof navigator !== "undefined"
-        ? navigator.userAgent.slice(0, 80)
-        : "?";
-    const keyTail = KAKAO_KEY ? `...${KAKAO_KEY.slice(-6)}` : "(없음)";
-    const errMsg = error instanceof Error ? error.message : String(error);
+    // eslint-disable-next-line no-console
+    console.error("[shak] kakao map load failed:", {
+      error,
+      origin,
+      href: typeof window !== "undefined" ? window.location.href : "?",
+      ua: typeof navigator !== "undefined" ? navigator.userAgent : "?",
+    });
     return (
       <div
         style={{
           width: "100%",
           height: "100%",
-          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#dc2626",
+          fontSize: 12,
           padding: 16,
-          color: "#1f1f1f",
-          fontSize: 11,
-          fontFamily: "monospace",
-          background: "#fafafa",
+          textAlign: "center",
+          gap: 6,
         }}
       >
-        <div style={{ fontWeight: 700, fontSize: 13, color: "#dc2626", marginBottom: 8 }}>
-          카카오 지도 로드 실패
-        </div>
-        <div style={{ marginBottom: 6 }}>
-          <strong>error:</strong> {errMsg}
-        </div>
-        <div style={{ marginBottom: 6 }}>
-          <strong>origin:</strong> {origin}
-        </div>
-        <div style={{ marginBottom: 6, wordBreak: "break-all" }}>
-          <strong>href:</strong> {href}
-        </div>
-        <div style={{ marginBottom: 6, wordBreak: "break-all" }}>
-          <strong>UA:</strong> {ua}
-        </div>
-        <div style={{ marginBottom: 6 }}>
-          <strong>key:</strong> {keyTail}
-        </div>
-        <div style={{ marginTop: 10, fontSize: 10, color: "#666" }}>
-          → 위 <strong>origin</strong>을 카카오 디벨로퍼 콘솔의 사이트 도메인에 추가 필요.
+        <div>카카오 지도 로드 실패</div>
+        <div style={{ fontSize: 10, color: "#666", wordBreak: "break-all" }}>
+          origin: {origin}
         </div>
       </div>
     );
