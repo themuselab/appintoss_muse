@@ -1,16 +1,15 @@
 import { useEffect, useMemo } from "react";
 import type { Shop } from "../data/shops";
-import { CATEGORY_COLORS, SHOPS } from "../data/shops";
+import { CATEGORY_COLORS } from "../data/shops";
 import { distanceMeters, fmtDistance } from "../lib/geo";
 
 type Props = {
   shop: Shop;
   myPos?: { lat: number; lng: number } | null;
   onClose: () => void;
-  onSelectNearby: (shop: Shop) => void;
 };
 
-export function MissedModal({ shop, myPos, onClose, onSelectNearby }: Props) {
+export function MissedModal({ shop, myPos, onClose }: Props) {
   // 모달 표시 동안 body scroll lock (모바일 배경 스크롤 + 지도 터치 가로채기 방지)
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
@@ -36,22 +35,6 @@ export function MissedModal({ shop, myPos, onClose, onSelectNearby }: Props) {
   const distStr = myPos
     ? fmtDistance(distanceMeters(myPos.lat, myPos.lng, shop.lat, shop.lng))
     : null;
-
-  // 내 위치 기준 가까운 같은 카테고리 가게 (현 가게 제외) 3개
-  const nearby = useMemo(() => {
-    const pool = SHOPS.filter(
-      (s) => s.category === shop.category && s.id !== shop.id,
-    );
-    const ranked = myPos
-      ? pool
-          .map((s) => ({
-            s,
-            d: distanceMeters(myPos.lat, myPos.lng, s.lat, s.lng),
-          }))
-          .sort((a, b) => a.d - b.d)
-      : pool.map((s) => ({ s, d: 0 })).sort((a, b) => b.s.repeatRate - a.s.repeatRate);
-    return ranked.slice(0, 4).map((r) => ({ shop: r.s, d: r.d }));
-  }, [shop.id, shop.category, myPos]);
 
   return (
     <div
@@ -383,80 +366,10 @@ export function MissedModal({ shop, myPos, onClose, onSelectNearby }: Props) {
           </div>
         </div>
 
-        {/* 근처 샵 — 클릭 가능 */}
-        <div
-          style={{
-            fontSize: 11.5,
-            fontWeight: 700,
-            color: "#1f1f1f",
-            marginBottom: 7,
-          }}
-        >
-          근처 샵
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {nearby.map(({ shop: s, d }) => (
-            <button
-              key={s.id}
-              onClick={() => onSelectNearby(s)}
-              style={{
-                border: "1px solid #ededed",
-                background: "white",
-                borderRadius: 8,
-                padding: "10px 12px",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                cursor: "pointer",
-                textAlign: "left",
-                font: "inherit",
-                width: "100%",
-              }}
-            >
-              <div
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: CATEGORY_COLORS[s.category],
-                  flexShrink: 0,
-                }}
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 12.5,
-                    fontWeight: 600,
-                    color: "#1f1f1f",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {s.district} {s.category}샵 · {s.specialty}
-                </div>
-                <div style={{ fontSize: 10.5, color: "#666", marginTop: 1 }}>
-                  ★ {s.rating.toFixed(1)} · 재방문 {s.repeatRate}%
-                  {myPos && d > 0 && ` · ${fmtDistance(d)}`}
-                </div>
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "#1f1f1f",
-                }}
-              >
-                {s.discountedPrice.toLocaleString()}원
-              </div>
-            </button>
-          ))}
-        </div>
-
         <button
           onClick={onClose}
           style={{
-            marginTop: 18,
+            marginTop: 4,
             width: "100%",
             padding: "12px 0",
             background: "#ec4899",

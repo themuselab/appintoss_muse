@@ -157,28 +157,6 @@ function App() {
     modalOpenedAt.current = Date.now();
   };
 
-  // 모달에서 "근처 샵" 카드 클릭 → 그 가게로 모달 전환
-  const handleSelectNearby = (shop: Shop) => {
-    if (modalOpenedAt.current && selectedShop) {
-      const dwell = Date.now() - modalOpenedAt.current;
-      track("missed_view", {
-        variant,
-        shopId: selectedShop.id,
-        shopCategory: selectedShop.category,
-        ms: dwell,
-      });
-    }
-    track("pin_click", {
-      variant,
-      shopId: shop.id,
-      shopCategory: shop.category,
-      shopDistrict: shop.district,
-    });
-    setHighlightedShopId(shop.id);
-    setSelectedShop(shop);
-    modalOpenedAt.current = Date.now();
-  };
-
   const handleCloseModal = () => {
     if (modalOpenedAt.current && selectedShop) {
       const dwell = Date.now() - modalOpenedAt.current;
@@ -242,7 +220,6 @@ function App() {
           shop={selectedShop}
           myPos={myPos}
           onClose={handleCloseModal}
-          onSelectNearby={handleSelectNearby}
         />
       )}
     </div>
