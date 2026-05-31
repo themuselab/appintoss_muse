@@ -1,24 +1,26 @@
-// 클릭/노출 이벤트를 themuselab.kr API로 전송. 실패해도 silent.
+// 클릭/노출 이벤트 → themuselab.kr API. 실패 silent.
 
 const TRACK_ENDPOINT = "https://themuselab.kr/api/track";
 
 type EventName =
-  | "session_start" // 앱 진입
-  | "impression" // 알림 카드 노출
-  | "alert_click" // 알림 카드 클릭
-  | "pin_click" // 지도 핀 클릭
-  | "missed_view" // "이미 다른 고객" 모달 머문 시간
-  | "deeplink_open"; // 푸시 deeplink 통해 진입한 직후
+  | "session_start"
+  | "impression"
+  | "alert_click"
+  | "pin_click"
+  | "missed_view"
+  | "deeplink_open";
+
+type Platform = "toss" | "web";
 
 type EventPayload = {
   variant?: "A" | "B";
   shopId?: string;
   shopCategory?: string;
   shopDistrict?: string;
-  ms?: number;
-  // deeplink 추적 (push 진입 시)
-  source?: string; // "push_a", "push_b", "organic" 등
-  campaignId?: string; // "20260530_01"
+  ms?: number; // dwell or time-to-click (이벤트 종류에 따라)
+  source?: string;
+  campaignId?: string;
+  platform?: Platform;
 };
 
 let sessionId = "";
@@ -29,7 +31,37 @@ function getSessionId() {
   return sessionId;
 }
 
-// URL 쿼리에서 deeplink 정보 추출 (1회만 호출, 이후 캐시)
+// 토스 앱 안 vs 일반 웹 구분
+let cachedPlatform: Platform | null = null;
+export function getPlatform(): Platform {
+  if (cachedPlatform) return cachedPlatform;
+  if (typeof window === "undefined") {
+    cachedPlatform = "web";
+    return cachedPlatform;
+  }
+  // 1. URL 쿼리 명시 (콘솔 deeplink ?platform=toss)
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("platform") === "toss") {
+    cachedPlatform = "toss";
+    return cachedPlatform;
+  }
+  // 2. UserAgent 검사
+  const ua = (navigator.userAgent || "").toLowerCase();
+  if (ua.includes("toss") || ua.includes("appsintoss")) {
+    cachedPlatform = "toss";
+    return cachedPlatform;
+  }
+  // 3. SDK가 주입한 글로벌 객체
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const w = window as any;
+  if (w.__APPS_IN_TOSS__ || w.AppsInToss || w.TossApp) {
+    cachedPlatform = "toss";
+    return cachedPlatform;
+  }
+  cachedPlatform = "web";
+  return cachedPlatform;
+}
+
 let cachedEntry: {
   source: string;
   campaignId: string;
@@ -63,6 +95,7 @@ export async function track(event: EventName, payload: EventPayload = {}) {
         event,
         sessionId: getSessionId(),
         ts: Date.now(),
+        platform: getPlatform(),
         ...payload,
       }),
       keepalive: true,

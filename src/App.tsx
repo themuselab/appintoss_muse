@@ -47,6 +47,7 @@ function App() {
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [highlightedShopId, setHighlightedShopId] = useState<string | undefined>();
   const modalOpenedAt = useRef<number | null>(null);
+  const alertShownAt = useRef<number | null>(null); // 알림 노출 시점 → time-to-click 측정
   const nextAlertTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 위치 가져오기 (1회)
@@ -99,6 +100,7 @@ function App() {
 
     const t = setTimeout(() => {
       setShowAlert(true);
+      alertShownAt.current = Date.now();
       track("impression", {
         variant,
         shopId: shop.id,
@@ -115,6 +117,7 @@ function App() {
       const next = pickFromPool(nearbyShops, exceptId);
       setAlertShop(next);
       setShowAlert(true);
+      alertShownAt.current = Date.now();
       track("impression", {
         variant,
         shopId: next.id,
@@ -126,12 +129,17 @@ function App() {
 
   const handleAlertClick = () => {
     if (!alertShop) return;
+    const ttc = alertShownAt.current
+      ? Date.now() - alertShownAt.current
+      : undefined;
     track("alert_click", {
       variant,
       shopId: alertShop.id,
       shopCategory: alertShop.category,
       shopDistrict: alertShop.district,
+      ms: ttc, // time-to-click
     });
+    alertShownAt.current = null;
     setHighlightedShopId(alertShop.id);
     setShowAlert(false);
     setTimeout(() => {
