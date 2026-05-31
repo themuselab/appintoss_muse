@@ -16,10 +16,12 @@ import {
 } from "../data/shops";
 
 type Props = {
+  shops?: Shop[]; // 표시할 가게 풀 (없으면 전체 SHOPS)
   highlightedShopId?: string;
   onPinClick: (shop: Shop) => void;
   myPos?: { lat: number; lng: number } | null;
   center?: { lat: number; lng: number };
+  radiusKm?: number; // 우하단 안내 표시용
 };
 
 // fallback center
@@ -36,7 +38,14 @@ function pinDataUrl(color: string, highlighted = false): string {
 // 카카오 키 — VITE_KAKAO_KEY 환경변수에서 (배포 시 카카오 디벨로퍼 콘솔 등록 필요)
 const KAKAO_KEY = import.meta.env.VITE_KAKAO_KEY as string | undefined;
 
-export function KakaoMap({ highlightedShopId, onPinClick, myPos, center }: Props) {
+export function KakaoMap({
+  shops,
+  highlightedShopId,
+  onPinClick,
+  myPos,
+  center,
+  radiusKm = 10,
+}: Props) {
   const [filter, setFilter] = useState<ServiceCategory | "전체">("전체");
   const mapRef = useRef<MapInstance>(null);
 
@@ -45,10 +54,10 @@ export function KakaoMap({ highlightedShopId, onPinClick, myPos, center }: Props
     libraries: ["clusterer"],
   });
 
+  const pool = shops || SHOPS;
   const visibleShops = useMemo(
-    () =>
-      filter === "전체" ? SHOPS : SHOPS.filter((s) => s.category === filter),
-    [filter],
+    () => (filter === "전체" ? pool : pool.filter((s) => s.category === filter)),
+    [pool, filter],
   );
 
   // highlighted shop 가운데로 panTo
@@ -263,7 +272,7 @@ export function KakaoMap({ highlightedShopId, onPinClick, myPos, center }: Props
           zIndex: 5,
         }}
       >
-        내 위치 5km 반경 · {SHOPS.length}곳
+        내 위치 {radiusKm}km · {pool.length}곳
       </div>
     </div>
   );

@@ -19,22 +19,24 @@ function pickRandomShop(exceptId?: string): Shop {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-// 내 위치 가까운 가게 우선 픽 (없으면 fallback to random)
-function pickNearbyShop(
+const RADIUS_M = 10_000; // 10km
+
+function shopsWithin(
+  shops: Shop[],
   myLat: number,
   myLng: number,
-  exceptId?: string,
-): Shop {
-  const pool = exceptId ? SHOPS.filter((s) => s.id !== exceptId) : SHOPS;
-  const ranked = pool
-    .map((s) => ({
-      shop: s,
-      d: distanceMeters(myLat, myLng, s.lat, s.lng),
-    }))
-    .sort((a, b) => a.d - b.d)
-    .slice(0, 30); // top 30 가까운 곳
-  if (!ranked.length) return pool[0];
-  return ranked[Math.floor(Math.random() * ranked.length)].shop;
+  radiusM: number,
+): Shop[] {
+  return shops.filter(
+    (s) => distanceMeters(myLat, myLng, s.lat, s.lng) <= radiusM,
+  );
+}
+
+// 풀 안에서 랜덤 픽
+function pickFromPool(pool: Shop[], exceptId?: string): Shop {
+  const filtered = exceptId ? pool.filter((s) => s.id !== exceptId) : pool;
+  if (!filtered.length) return pool[0] || SHOPS[0];
+  return filtered[Math.floor(Math.random() * filtered.length)];
 }
 
 function App() {
@@ -54,6 +56,12 @@ function App() {
     });
   }, []);
 
+  // 10km 반경 내 가게
+  const nearbyShops = useMemo(() => {
+    if (!myPos) return SHOPS;
+    return shopsWithin(SHOPS, myPos.lat, myPos.lng, RADIUS_M);
+  }, [myPos]);
+
   // 세션 시작 + deeplink
   useEffect(() => {
     const entry = getEntryInfo();
@@ -72,14 +80,14 @@ function App() {
     }
   }, [variant]);
 
-  // 첫 알림 — 위치 받은 후
+  // 첫 알림 — 위치 받은 후 10km 풀에서 픽
   useEffect(() => {
     if (!myPos) return;
     const entry = getEntryInfo();
     const deeplinkShop = entry.shopId
       ? SHOPS.find((s) => s.id === entry.shopId)
       : undefined;
-    const shop = deeplinkShop || pickNearbyShop(myPos.lat, myPos.lng);
+    const shop = deeplinkShop || pickFromPool(nearbyShops);
     setAlertShop(shop);
 
     if (deeplinkShop) {
@@ -99,14 +107,12 @@ function App() {
       });
     }, 1500);
     return () => clearTimeout(t);
-  }, [myPos, variant]);
+  }, [myPos, nearbyShops, variant]);
 
   const scheduleNextAlert = (delayMs: number, exceptId?: string) => {
     if (nextAlertTimer.current) clearTimeout(nextAlertTimer.current);
     nextAlertTimer.current = setTimeout(() => {
-      const next = myPos
-        ? pickNearbyShop(myPos.lat, myPos.lng, exceptId)
-        : pickRandomShop(exceptId);
+      const next = pickFromPool(nearbyShops, exceptId);
       setAlertShop(next);
       setShowAlert(true);
       track("impression", {
@@ -189,7 +195,7 @@ function App() {
     scheduleNextAlert(20000, alertShop?.id);
   };
 
-  const shopCount = useMemo(() => SHOPS.length, []);
+  const nearbyCount = nearbyShops.length;
   const center = myPos || SEOUL_CENTER;
 
   return (
@@ -201,7 +207,11 @@ function App() {
           </div>
           <div>
             <div className="muse-title">뮤즈</div>
-            <div className="muse-subtitle">내 위치 5km · {shopCount}곳</div>
+            <div className="muse-subtitle">
+              {myPos
+                ? `내 위치 10km · ${nearbyCount}곳`
+                : `위치 확인 중…`}
+            </div>
           </div>
         </div>
         <div className="muse-variant-badge">{variant}</div>
@@ -209,10 +219,12 @@ function App() {
 
       <div className="muse-map-wrap">
         <KakaoMap
+          shops={nearbyShops}
           highlightedShopId={highlightedShopId}
           onPinClick={handlePinClick}
           myPos={myPos}
           center={center}
+          radiusKm={10}
         />
         {showAlert && alertShop && (
           <AlertCard

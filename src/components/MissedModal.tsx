@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import type { Shop } from "../data/shops";
 import { CATEGORY_COLORS, SHOPS } from "../data/shops";
 import { distanceMeters, fmtDistance } from "../lib/geo";
@@ -11,6 +11,19 @@ type Props = {
 };
 
 export function MissedModal({ shop, myPos, onClose, onSelectNearby }: Props) {
+  // 모달 표시 동안 body scroll lock (모바일 배경 스크롤 + 지도 터치 가로채기 방지)
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    const prevTouchAction = document.body.style.touchAction;
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.body.style.touchAction = prevTouchAction;
+    };
+  }, []);
+
+
   // 동시에 보고 있는 인원수: 가게 ID 기반 결정적 1~3 (모달 다시 열어도 같은 가게면 같음)
   const otherCount = useMemo(() => {
     let h = 0;
@@ -51,11 +64,16 @@ export function MissedModal({ shop, myPos, onClose, onSelectNearby }: Props) {
         alignItems: "flex-end",
         justifyContent: "center",
         animation: "fadeIn 0.2s ease-out",
+        touchAction: "none", // overlay 자체는 터치 X
       }}
       onClick={onClose}
+      onTouchMove={(e) => e.stopPropagation()}
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
         style={{
           background: "white",
           borderTopLeftRadius: 14,
@@ -63,6 +81,9 @@ export function MissedModal({ shop, myPos, onClose, onSelectNearby }: Props) {
           width: "100%",
           maxHeight: "88vh",
           overflowY: "auto",
+          WebkitOverflowScrolling: "touch",
+          touchAction: "pan-y", // 모달 내부는 세로 스크롤만 허용
+          overscrollBehavior: "contain",
           padding: "18px 18px 28px 18px",
           animation: "slideUp 0.3s ease-out",
         }}
