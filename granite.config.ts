@@ -5,7 +5,7 @@ export default defineConfig({
   brand: {
     displayName: "샥",
     primaryColor: "#ec4899",
-    icon: "/icon-syak.png",
+    icon: "/icon-shak.png",
   },
   web: {
     host: "localhost",
